@@ -1,0 +1,3 @@
+*.sh
+phy*
+__pycache__/
