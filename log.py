@@ -17,7 +17,7 @@ def log_img_train(log, epoch, name_prefix, images):
   
     log.add_image(f'{name_prefix}/train/adv_scene', adv_scene_image.detach().cpu()[0], epoch)
     log.add_image(f'{name_prefix}/train/ben_scene', ben_scene_image.detach().cpu()[0], epoch)
-    log.add_image(f'{name_prefix}/train/patch', patch.detach().cpu()[0], epoch)
+    # log.add_image(f'{name_prefix}/train/patch', patch.detach().cpu()[0], epoch)
     log.add_image(f'{name_prefix}/train/ben_depth', ben_depth, epoch, dataformats='HWC')
     log.add_image(f'{name_prefix}/train/adv_depth', adv_depth, epoch, dataformats='HWC')
 

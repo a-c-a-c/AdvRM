@@ -115,7 +115,7 @@ class ENV:
         return batch, patch_size
         
 
-    def accept_patch(self, optmized_patch, init_patch, patch_mask, insert_height, offset_patch=False, color_patch=False):
+    def accept_patch(self, optmized_patch, init_patch, patch_mask, insert_height, offset_patch=False, color_patch=False, patch_heigh = None, brightness=None, contrast=None, saturation=None):
 
         if offset_patch:
             # h_shift = random.randint(-3,3) 
@@ -128,20 +128,26 @@ class ENV:
             h_shift,v_shift=0,0
 
         if color_patch:
-            trans_seq_color = T.ColorJitter(brightness=0.3,contrast=0.2,saturation=0.2)
-            optmized_patch = trans_seq_color(optmized_patch)
+            if brightness is not None and contrast is not None and saturation is not None:
+                optmized_patch=Func.adjust_brightness(optmized_patch, brightness)
+                optmized_patch=Func.adjust_contrast(optmized_patch, contrast)
+                optmized_patch=Func.adjust_saturation(optmized_patch, saturation)
+            else:
+                trans_seq_color = T.ColorJitter(brightness=0.3,contrast=0.2,saturation=0.2)
+                optmized_patch = trans_seq_color(optmized_patch)
+            # r = random.randint(1,5)
+            # r = r*2-1
+            # optmized_patch = Func.gaussian_blur(optmized_patch,int(r))
 
-            # kernel_size = [1,3,5]
-            r = random.randint(1,5)
-            r = r*2-1
-            optmized_patch = Func.gaussian_blur(optmized_patch,int(r))
-
+        if patch_heigh is None:
+            patch_heigh = self.args['patch_height']
+        
             
         
         insert_width=self.compute_width_coor(self.road_param[-2],self.road_param[-1],insert_height)
         insert_coor=[insert_height,insert_width]
         patch_insert_top=insert_coor[0]
-        patch_insert_bottom=insert_coor[0]+self.args['patch_height']
+        patch_insert_bottom=insert_coor[0]+patch_heigh#self.args['patch_height']
         patch_width_top=self.compute_road_width(patch_insert_top,*self.road_param[:-2])
         patch_width_bottom=self.compute_road_width(patch_insert_bottom,*self.road_param[:-2])
         patch_insert_top_width=self.compute_width_coor(self.road_param[-2],self.road_param[-1],patch_insert_top)+h_shift
@@ -332,15 +338,17 @@ class OBJ:
                         object_files[key].append(file)
                         break
         
-        test_num = {'pas':-self.args['test_pas_num'], 'car':-self.args['test_car_num'], 'obs':-self.args['test_obs_num']}
+        train_num = {'pas':self.args['train_pas_num'], 'car':self.args['train_car_num'], 'obs':self.args['train_obs_num']}
+        
         keys = keys_fn(self.args['obj_type_train'])
         self.object_files_train={}
         for key in keys:
-            self.object_files_train[key]=object_files[key][:test_num[key]]
+            self.object_files_train[key]=object_files[key][:train_num[key]]
         keys = keys_fn(self.args['obj_type_test'])
+        
         self.object_files_test={}
         for key in keys:
-            self.object_files_test[key]=object_files[key][test_num[key]:]
+            self.object_files_test[key]=object_files[key][train_num[key]:]
 
 
         self.object_imgs_train, self.object_imgs_test = {}, {}

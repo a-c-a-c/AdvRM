@@ -36,7 +36,7 @@ class ADVRM:
             print(self.objects.object_files_test)
             self.run = self.run_with_random_object
         else:
-            self.objects.load_object_mask(self.args['obj_full_mask_file'], self.args['obj_full_mask_dir'])
+            # self.objects.load_object_mask(self.args['obj_full_mask_file'], self.args['obj_full_mask_dir'])
             self.run = self.run_with_fixed_object
         self.MDE = load_target_model(self.args['depth_model'], self.args)
         self.configure_loss(self.patch)
@@ -126,23 +126,49 @@ class ADVRM:
                 if self.args['train_quan_patch_flag'] and (epoch+1)%10==0:
                     optmized_patch = (self.patch.optmized_patch*255).int().float()/255.
                     self.patch.optmized_patch.data = optmized_patch.data
-
-                if epoch % self.args['train_img_log_interval']==0 or (epoch+1)==self.args['epoch']:
-                    log_img_train(self.log, epoch, name_prefix, [adv_scene_image, ben_scene_image, (self.patch.optmized_patch*255).int().float()/255., batch_y[0], batch_y[1]])
-                    log_scale_train(self.log,epoch, name_prefix, style_score, content_score, tv_score, adv_loss, mean_shift, max_shift, min_shift, mean_ori, arr)
                 
-                if epoch % self.args['inner_eval_interval']==0 or (epoch+1)==self.args['epoch']: 
-                    for category in self.objects.object_imgs_test.keys():
-                        if self.args['random_test_flag']:
-                            record = [[] for i in range(5)]
-                            for _ in range(20):
-                                record_tmp = self.eval(self.MDE, category)
-                                for i in range(5):
-                                    record[i]+=record_tmp[i]       
-                        else:
-                            record = self.eval(self.MDE, category)
+                if self.args['train_log_flag']:
+                    if epoch % self.args['train_img_log_interval']==0 or (epoch+1)==self.args['epoch']:
+                        log_img_train(self.log, epoch, name_prefix, [adv_scene_image, ben_scene_image, (self.patch.optmized_patch*255).int().float()/255., batch_y[0], batch_y[1]])
+                        self.log.add_image(f'{name_prefix}/train/object_mask', object_full_mask.detach().cpu()[0, 0], epoch, dataformats='HW')
                         
-                        log_scale_eval(self.log, epoch, name_prefix, self.MDE[0],category, np.mean(record[0]), np.mean(record[1]), np.mean(record[2]),np.mean(record[3]),np.mean(record[4]) )      
+                        log_scale_train(self.log,epoch, name_prefix, style_score, content_score, tv_score, adv_loss, mean_shift, max_shift, min_shift, mean_ori, arr)
+                
+                if self.args['inner_eval_flag']:
+                    if epoch % self.args['inner_eval_interval']==0 or (epoch+1)==self.args['epoch']: 
+                        for category in self.objects.object_imgs_test.keys():
+                            if self.args['random_test_flag']:
+                                record = [[] for i in range(5)]
+                                for _ in range(20):
+                                    record_tmp = self.eval(self.MDE, category)
+                                    for i in range(5):
+                                        record[i]+=record_tmp[i]       
+                            else:
+                                record = self.eval(self.MDE, category)
+                            
+                            log_scale_eval(self.log, epoch, name_prefix, self.MDE[0],category, np.mean(record[0]), np.mean(record[1]), np.mean(record[2]),np.mean(record[3]),np.mean(record[4]) )      
+                # if (epoch+1)==self.args['epoch'] or (epoch % self.args['inner_eval_interval']==0 and epoch>300): 
+        
+                #         for idx in range(len(self.objects.object_imgs_test['pas'])-3+1):
+                #             batch, _ = self.env.accept_patch_and_objects(True, self.patch.optmized_patch, self.patch.mask, self.objects.object_imgs_test, self.env.insert_range, None, None, offset_patch=self.args['test_offset_patch_flag'], color_patch=self.args['test_color_patch_flag'], offset_object=self.args['test_offset_object_flag'], color_object=self.args['test_color_object_flag'],object_idx_g=idx, category='pas')    
+                #             batch= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch]
+                #             batch_y= predict_batch(batch, self.MDE)
+
+                #             adv_scene_image, ben_scene_image, scene_img, patch_full_mask, object_full_mask = batch
+                #             adv_depth, ben_depth, scene_depth, tar_depth = batch_y
+
+                #             colormap = plt.get_cmap('viridis')
+                #             ben_depth = ben_depth.detach().cpu()[0]
+                #             adv_depth = adv_depth.detach().cpu()[0]
+                #             ben_depth = (ben_depth - ben_depth.min()) / (ben_depth.max() - ben_depth.min())
+                #             adv_depth = (adv_depth - adv_depth.min()) / (adv_depth.max() - adv_depth.min())
+                #             ben_depth = colormap(ben_depth.numpy())[..., :3]
+                #             adv_depth = colormap(adv_depth.numpy())[..., :3]
+                        
+                #             self.log.add_image(f'{name_prefix}/eval/adv_scene_{idx}', adv_scene_image.detach().cpu()[0], epoch)
+                #             self.log.add_image(f'{name_prefix}/eval/ben_scene_{idx}', ben_scene_image.detach().cpu()[0], epoch)
+                #             self.log.add_image(f'{name_prefix}/eval/ben_depth_{idx}', ben_depth, epoch, dataformats='HWC')
+                #             self.log.add_image(f'{name_prefix}/eval/adv_depth_{idx}', adv_depth, epoch, dataformats='HWC')
 
                 # if (epoch+1)==self.args['epoch']:
                 #     print(f'mean_ori:{mean_ori.item():.2f}\tmean_shift:{mean_shift.item():.2f}\tmrsr:{(mean_shift/mean_ori).item():.2f}') 
@@ -188,10 +214,10 @@ class ADVRM:
                 if self.args['train_quan_patch_flag'] and (epoch+1)%10==0:
                     optmized_patch = (self.patch.optmized_patch*255).int().float()/255.
                     self.patch.optmized_patch.data = optmized_patch.data
-
-                if epoch % self.args['train_img_log_interval']==0 or (epoch+1)==self.args['epoch']:
-                    log_img_train(self.log, epoch, name_prefix, [adv_scene_image, ben_scene_image, (self.patch.optmized_patch*255).int().float()/255., batch_y[0], batch_y[1]])
-                    log_scale_train(self.log,epoch, name_prefix, style_score, content_score, tv_score, adv_loss, mean_shift, max_shift, min_shift, mean_ori, arr)
+                if self.args['train_log_flag']:
+                    if epoch % self.args['train_img_log_interval']==0 or (epoch+1)==self.args['epoch']:
+                        log_img_train(self.log, epoch, name_prefix, [adv_scene_image, ben_scene_image, (self.patch.optmized_patch*255).int().float()/255., batch_y[0], batch_y[1]])
+                        log_scale_train(self.log,epoch, name_prefix, style_score, content_score, tv_score, adv_loss, mean_shift, max_shift, min_shift, mean_ori, arr)
                 
                 return loss
             if self.args['update']=='lbfgs':
@@ -660,8 +686,103 @@ class ADVRM:
         # plt.imsave(f"/home/hangcheng/codes/MDE_Attack/AdvRM/phy_pics/optmized_patch/{self.args['patch_file'][:-4]}_{scene_file[:-4]}.png",self.patch.optmized_patch.detach().clone().cpu().numpy()[0].transpose([1,2,0]))
         plt.imsave(f"adv_high.png",adv_scene_image.detach().cpu().numpy()[0].transpose((1,2,0)))
         plt.imsave(f"adv_low.png", torch.nn.functional.interpolate(adv_scene_image,size=([self.args['input_height'],self.args['input_width']])).detach().cpu().numpy()[0].transpose((1,2,0)))
- 
 
 
+    def run_with_fixed_object_multi_frame(self, scene_dir, scene_file, idx, points):
+        
+        csv_file = self.args['csv_dir']
+        scene_set =  pd.read_csv(csv_file)
+        self.env1 = ENV(self.args, 'phy_ntu_1.png', scene_dir, 0, points = scene_set.iloc[0])
+        self.env2 = ENV(self.args, 'phy_ntu_2.png', scene_dir, 1, points = scene_set.iloc[1])
+        self.env3 = ENV(self.args, 'phy_ntu_3.png', scene_dir, 2, points = scene_set.iloc[2])
+        self.env4 = ENV(self.args, 'phy_ntu_4.png', scene_dir, 3, points = scene_set.iloc[3])
 
-    
+        self.objects1 = OBJ(self.args)
+        self.objects1.load_object_mask('phy_ntu_1_mask.png', self.args['obj_full_mask_dir'])
+        self.objects2 = OBJ(self.args)
+        self.objects2.load_object_mask('phy_ntu_2_mask.png', self.args['obj_full_mask_dir'])
+        self.objects3 = OBJ(self.args)
+        self.objects3.load_object_mask('phy_ntu_3_mask.png', self.args['obj_full_mask_dir'])
+        self.objects4 = OBJ(self.args)
+        self.objects4.load_object_mask('phy_ntu_4_mask.png', self.args['obj_full_mask_dir'])
+        
+        name_prefix1 = f"{self.args['patch_file'][:-4]}_phy_ntu_1_{idx}"
+        name_prefix2 = f"{self.args['patch_file'][:-4]}_phy_ntu_2_{idx}"
+        name_prefix3 = f"{self.args['patch_file'][:-4]}_phy_ntu_3_{idx}"
+        name_prefix4 = f"{self.args['patch_file'][:-4]}_phy_ntu_4_{idx}"
+        if self.args['update']=='lbfgs':
+            optimizer = optim.LBFGS([self.patch.optmized_patch], lr=self.args['learning_rate'])
+            LR_decay = PolynomialLRDecay(optimizer, self.args['epoch']//2, self.args['learning_rate']/2, 0.9)
+
+        for epoch in tqdm(range(self.args['epoch']), desc=f"Training {idx}/{self.args['scene_num']}"):
+            def closure(): 
+                if self.args['update']=='lbfgs':
+                    optimizer.zero_grad()
+                self.patch.optmized_patch.data.clamp_(0, 1)
+                
+                bri,con,sat=random.uniform(0.8,1.2),random.uniform(0.9,1.1),random.uniform(0.9,1.1)
+                adv_scene_image1, ben_scene_image1, patch_size1, patch_full_mask1 = self.env1.accept_patch(self.patch.optmized_patch, None, self.patch.mask, 496, offset_patch=self.args['train_offset_patch_flag'], color_patch=self.args['train_color_patch_flag'],patch_heigh=298,brightness=bri,contrast=con,saturation=sat)
+                adv_scene_image2, ben_scene_image2, patch_size2, patch_full_mask2 = self.env2.accept_patch(self.patch.optmized_patch, None, self.patch.mask, 446, offset_patch=self.args['train_offset_patch_flag'], color_patch=self.args['train_color_patch_flag'],patch_heigh=219,brightness=bri,contrast=con,saturation=sat)
+                adv_scene_image3, ben_scene_image3, patch_size3, patch_full_mask3 = self.env3.accept_patch(self.patch.optmized_patch, None, self.patch.mask, 406, offset_patch=self.args['train_offset_patch_flag'], color_patch=self.args['train_color_patch_flag'],patch_heigh=166,brightness=bri,contrast=con,saturation=sat)
+                adv_scene_image4, ben_scene_image4, patch_size4, patch_full_mask4 = self.env4.accept_patch(self.patch.optmized_patch, None, self.patch.mask, 368, offset_patch=self.args['train_offset_patch_flag'], color_patch=self.args['train_color_patch_flag'],patch_heigh=134,brightness=bri,contrast=con,saturation=sat)
+
+                batch1= [adv_scene_image1, ben_scene_image1, self.env1.env, patch_full_mask1, self.objects1.object_full_mask]
+                batch2= [adv_scene_image2, ben_scene_image2, self.env2.env, patch_full_mask2, self.objects2.object_full_mask]
+                batch3= [adv_scene_image3, ben_scene_image3, self.env3.env, patch_full_mask3, self.objects3.object_full_mask]
+                batch4= [adv_scene_image4, ben_scene_image4, self.env4.env, patch_full_mask4, self.objects4.object_full_mask]
+                batch1= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch1]
+                batch2= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch2]
+                batch3= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch3]
+                batch4= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch4]
+
+                batch_y1 = predict_batch(batch1, self.MDE)
+                batch_y2 = predict_batch(batch2, self.MDE)
+                batch_y3 = predict_batch(batch3, self.MDE)
+                batch_y4 = predict_batch(batch4, self.MDE)
+                
+                adv_loss1 = self.adv_loss_fn(batch1, batch_y1)
+                adv_loss2 = self.adv_loss_fn(batch2, batch_y2)
+                adv_loss3 = self.adv_loss_fn(batch3, batch_y3)
+                adv_loss4 = self.adv_loss_fn(batch4, batch_y4)
+                adv_loss = (adv_loss1+adv_loss2+adv_loss3+adv_loss4)/4
+
+                mean_ori1, mean_shift1, max_shift1, min_shift1, arr1 =self.eval_core(batch_y1[0], batch_y1[1], batch1[-1])
+                mean_ori2, mean_shift2, max_shift2, min_shift2, arr2 =self.eval_core(batch_y2[0], batch_y2[1], batch2[-1])
+                mean_ori3, mean_shift3, max_shift3, min_shift3, arr3 =self.eval_core(batch_y3[0], batch_y3[1], batch3[-1])
+                mean_ori4, mean_shift4, max_shift4, min_shift4, arr4 =self.eval_core(batch_y4[0], batch_y4[1], batch4[-1])
+                
+                # adv_loss = self.adv_loss_fn(batch, batch_y)
+                style_loss, style_score, content_score, tv_score = self.compute_sty_loss(self.patch.optmized_patch,  self.patch.init_patch, self.args['style_weight'], self.args['content_weight'], self.args['tv_weight'])
+                
+                loss = self.args['lambda']*style_loss + self.args['beta']*adv_loss
+                if self.args['update']=='lbfgs':
+                    loss.backward()
+
+                if self.args['train_quan_patch_flag'] and (epoch+1)%10==0:
+                    optmized_patch = (self.patch.optmized_patch*255).int().float()/255.
+                    self.patch.optmized_patch.data = optmized_patch.data
+
+                if epoch % self.args['train_img_log_interval']==0 or (epoch+1)==self.args['epoch']:
+                    
+                    log_img_train(self.log, epoch, name_prefix1, [adv_scene_image1, ben_scene_image1, (self.patch.optmized_patch*255).int().float()/255., batch_y1[0], batch_y1[1]])
+
+                    log_img_train(self.log, epoch, name_prefix2, [adv_scene_image2, ben_scene_image2, (self.patch.optmized_patch*255).int().float()/255., batch_y2[0], batch_y2[1]])
+
+                    log_img_train(self.log, epoch, name_prefix3, [adv_scene_image3, ben_scene_image3, (self.patch.optmized_patch*255).int().float()/255., batch_y3[0], batch_y3[1]])
+
+                    log_img_train(self.log, epoch, name_prefix4, [adv_scene_image4, ben_scene_image4, (self.patch.optmized_patch*255).int().float()/255., batch_y4[0], batch_y4[1]])
+
+                    log_scale_train(self.log,epoch, name_prefix1, style_score, content_score, tv_score, adv_loss, mean_shift1, max_shift1, min_shift1, mean_ori1, arr1)
+                    log_scale_train(self.log,epoch, name_prefix2, style_score, content_score, tv_score, adv_loss, mean_shift2, max_shift2, min_shift2, mean_ori2, arr1)
+                    log_scale_train(self.log,epoch, name_prefix3, style_score, content_score, tv_score, adv_loss, mean_shift3, max_shift3, min_shift3, mean_ori3, arr3)
+                    log_scale_train(self.log,epoch, name_prefix4, style_score, content_score, tv_score, adv_loss, mean_shift4, max_shift4, min_shift4, mean_ori4, arr4)
+                
+                return loss
+            if self.args['update']=='lbfgs':
+
+                optimizer.step(closure)
+                LR_decay.step()
+            else:
+                loss = closure()
+                grad = torch.autograd.grad(loss, [self.patch.optmized_patch] )[0]
+                self.patch.optmized_patch = bim(grad, self.patch.optmized_patch,self.args['learning_rate'])
