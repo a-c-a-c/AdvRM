@@ -45,40 +45,9 @@ def main(args):
                 args['obj_full_mask_file'] = f'{scene_file[:-4]}_mask.png'
             advrm=ADVRM(args, writer, None, True, args['random_object_flag'])
             advrm.run(args['scene_dir'], scene_file, idx, secen_key_points)
-            # advrm.patch.recover()
-    
-
-
-    # if args['phy_flag']: 
-    #     patch_size=args['patch_size'].split(',')
-    #     patch_size = [int(i) for i in patch_size]
-    #     idx = args['idx']
-    #     scene_file = scene_set['Filename'].to_list()[idx]
-    #     secen_key_points=scene_set.iloc[idx]
-    #     args['phy_mask_file'] = f"{scene_file[:-4]}_mask.png"
-    #     advrm = ADVRM(args, writer)
-    #     print('=============config============')
-    #     print(f'scene file: {scene_file}')
-    #     print(f'points: {secen_key_points}')
-    #     print('===============================')
-    #     advrm.phy_run_lbfgs_given_object(args['scene_dir'], scene_file, 0, secen_key_points, patch_size)
-
-    # else:
-    #     patch_size=None
-    #     advrm = ADVRM(args, writer)
-    #     advrm.digital_init(patch_size)
-    #     for idx in range(args['scene_num']):
-    #         scene_file = scene_set['Filename'].to_list()[idx]
-    #         secen_key_points=scene_set.iloc[idx]
-    #         advrm.run(args['scene_dir'], scene_file, idx, secen_key_points)
-    #         advrm.patch.recover()
-
 
 if __name__=='__main__':
     args = get_args()
     torch.cuda.set_device(args['device'])
     setup_seed(args['seed'])
     main(args)
-
-
-
