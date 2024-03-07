@@ -99,27 +99,14 @@ class ADVRM:
                 batch, patch_size = self.env.accept_patch_and_objects(False, self.patch.optmized_patch, self.patch.mask, self.objects.object_imgs_train, self.env.insert_range, None, None, offset_patch=self.args['train_offset_patch_flag'], color_patch=self.args['train_color_patch_flag'], offset_object=self.args['train_offset_object_flag'], color_object=self.args['train_color_object_flag'])
 
                 adv_scene_image, ben_scene_image, scene_img, patch_full_mask, object_full_mask = batch
-                                                                
-
-                # if self.args['up']==self.args['bottom']:
-                #     try:
-                #         assert patch_size_large[0] == patch_size[0]
-                #         assert patch_size_large[1] == patch_size[1]
-                #     except:
-                #         print(f"assert error!!! given patch size:{patch_size_large}, calculated patch size:{patch_size}")
-                #         exit()
-
                 batch= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch]
-
                 batch_y = predict_batch(batch, self.MDE)
                 
-                adv_loss = self.adv_loss_fn(batch, batch_y)
                 mean_ori, mean_shift, max_shift, min_shift, arr =self.eval_core(batch_y[0], batch_y[1], batch[-1])
-                
                 adv_loss = self.adv_loss_fn(batch, batch_y)
                 style_loss, style_score, content_score, tv_score = self.compute_sty_loss(self.patch.optmized_patch,  self.patch.init_patch, self.args['style_weight'], self.args['content_weight'], self.args['tv_weight'])
                 
-                loss = self.args['lambda']*style_loss + self.args['beta']*adv_loss
+                loss = self.args['lambda']*style_loss + adv_loss
                 if self.args['update']=='lbfgs':
                     loss.backward()
 
@@ -147,31 +134,6 @@ class ADVRM:
                                 record = self.eval(self.MDE, category)
                             
                             log_scale_eval(self.log, epoch, name_prefix, self.MDE[0],category, np.mean(record[0]), np.mean(record[1]), np.mean(record[2]),np.mean(record[3]),np.mean(record[4]) )      
-                # if (epoch+1)==self.args['epoch'] or (epoch % self.args['inner_eval_interval']==0 and epoch>300): 
-        
-                #         for idx in range(len(self.objects.object_imgs_test['pas'])-3+1):
-                #             batch, _ = self.env.accept_patch_and_objects(True, self.patch.optmized_patch, self.patch.mask, self.objects.object_imgs_test, self.env.insert_range, None, None, offset_patch=self.args['test_offset_patch_flag'], color_patch=self.args['test_color_patch_flag'], offset_object=self.args['test_offset_object_flag'], color_object=self.args['test_color_object_flag'],object_idx_g=idx, category='pas')    
-                #             batch= [ torch.nn.functional.interpolate(item,size=([int(self.args['input_height']),int(self.args['input_width'])])) for item in batch]
-                #             batch_y= predict_batch(batch, self.MDE)
-
-                #             adv_scene_image, ben_scene_image, scene_img, patch_full_mask, object_full_mask = batch
-                #             adv_depth, ben_depth, scene_depth, tar_depth = batch_y
-
-                #             colormap = plt.get_cmap('viridis')
-                #             ben_depth = ben_depth.detach().cpu()[0]
-                #             adv_depth = adv_depth.detach().cpu()[0]
-                #             ben_depth = (ben_depth - ben_depth.min()) / (ben_depth.max() - ben_depth.min())
-                #             adv_depth = (adv_depth - adv_depth.min()) / (adv_depth.max() - adv_depth.min())
-                #             ben_depth = colormap(ben_depth.numpy())[..., :3]
-                #             adv_depth = colormap(adv_depth.numpy())[..., :3]
-                        
-                #             self.log.add_image(f'{name_prefix}/eval/adv_scene_{idx}', adv_scene_image.detach().cpu()[0], epoch)
-                #             self.log.add_image(f'{name_prefix}/eval/ben_scene_{idx}', ben_scene_image.detach().cpu()[0], epoch)
-                #             self.log.add_image(f'{name_prefix}/eval/ben_depth_{idx}', ben_depth, epoch, dataformats='HWC')
-                #             self.log.add_image(f'{name_prefix}/eval/adv_depth_{idx}', adv_depth, epoch, dataformats='HWC')
-
-                # if (epoch+1)==self.args['epoch']:
-                #     print(f'mean_ori:{mean_ori.item():.2f}\tmean_shift:{mean_shift.item():.2f}\tmrsr:{(mean_shift/mean_ori).item():.2f}') 
                 return loss
             if self.args['update']=='lbfgs':
                 optimizer.zero_grad()
@@ -201,13 +163,12 @@ class ADVRM:
 
                 batch_y = predict_batch(batch, self.MDE)
                 
-                adv_loss = self.adv_loss_fn(batch, batch_y)
                 mean_ori, mean_shift, max_shift, min_shift, arr =self.eval_core(batch_y[0], batch_y[1], batch[-1])
                 
                 adv_loss = self.adv_loss_fn(batch, batch_y)
                 style_loss, style_score, content_score, tv_score = self.compute_sty_loss(self.patch.optmized_patch,  self.patch.init_patch, self.args['style_weight'], self.args['content_weight'], self.args['tv_weight'])
                 
-                loss = self.args['lambda']*style_loss + self.args['beta']*adv_loss
+                loss = self.args['lambda']*style_loss + adv_loss
                 if self.args['update']=='lbfgs':
                     loss.backward()
 
@@ -368,3 +329,8 @@ class ADVRM:
     #             loss = closure()
     #             grad = torch.autograd.grad(loss, [self.patch.optmized_patch] )[0]
     #             self.patch.optmized_patch = bim(grad, self.patch.optmized_patch,self.args['learning_rate'])
+    
+
+
+
+    
